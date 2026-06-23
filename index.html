@@ -40,7 +40,7 @@ window._ADMIN_EMAIL = ADMIN_EMAIL;
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     window.currentUser = { email: user.email, name: user.displayName || user.email.split('@')[0], uid: user.uid };
-    await window._ensureUserData();
+    await window._ensureUserData(user.uid);
     window.showApp();
   } else {
     window.currentUser = null;
@@ -716,11 +716,12 @@ async function saveDB(db){
   const ref=doc(window._fbDb,'users',currentUser.uid);
   await setDoc(ref,db);
 }
-window._ensureUserData = async function(){
-  if(!currentUser || !currentUser.uid) return;
+window._ensureUserData = async function(uid){
+  const resolvedUid = uid || (currentUser && currentUser.uid);
+  if(!resolvedUid) return;
   _dbCache=null;
   const {doc,getDoc,setDoc}=window._fbFns;
-  const ref=doc(window._fbDb,'users',currentUser.uid);
+  const ref=doc(window._fbDb,'users',resolvedUid);
   const snap=await getDoc(ref);
   if(!snap.exists()){
     const msgTemplate='Oi {dono}! 🐾 Tudo bem?\nFaz um tempinho que o {nome} não vem nos visitar para um banho!\nQue tal agendar um horário? Adoramos cuidar do {nome} 😍\nÉ só responder aqui que marcamos para você! 🛁✨';
