@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PetShop Manager 🐾</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script type="module">
+// ════ FIREBASE ════
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const ADMIN_EMAIL = 'chicho.vini7@hotmail.com'; // ← troque pelo seu e-mail
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAaSF12b3uohR4I_g_dd47Y0fAz0Z6JAXo",
+  authDomain: "petshop-e4cd1.firebaseapp.com",
+  projectId: "petshop-e4cd1",
+  storageBucket: "petshop-e4cd1.firebasestorage.app",
+  messagingSenderId: "639936673708",
+  appId: "1:639936673708:web:622f132208e7660c9dec09",
+  measurementId: "G-MP9RDVQ31Q"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db_fs = getFirestore(firebaseApp);
+
+// Expor globalmente para as funções do app
+window._fbAuth = auth;
+window._fbDb = db_fs;
+window._fbFns = { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc };
+window._ADMIN_EMAIL = ADMIN_EMAIL;
+
+// Observar estado de autenticação
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    window.currentUser = { email: user.email, name: user.displayName || user.email.split('@')[0], uid: user.uid };
+    await window._ensureUserData();
+    window.showApp();
+  } else {
+    window.currentUser = null;
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+});
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --cream:#F7F8FC;--white:#FFFFFF;
+  --ocean:#1B4F72;--ocean-light:#2E86AB;--ocean-pale:#D6EAF8;
+  --mint:#1A9B60;--mint-light:#2ECC71;--mint-pale:#D5F5E3;
+  --amber:#D4860A;--amber-light:#F39C12;--amber-pale:#FEF3CD;
+  --rose:#C0392B;--rose-pale:#FADBD8;
+  --purple:#7D3C98;--purple-pale:#E8DAEF;
+  --gray-900:#1A1A2E;--gray-700:#4A4A6A;--gray-500:#7F8C8D;--gray-300:#BDC3C7;--gray-100:#ECF0F1;
+  --radius:16px;--radius-sm:10px;--shadow:0 2px 16px rgba(27,79,114,.09);--shadow-lg:0 8px 32px rgba(27,79,114,.18);
+}
+body{font-family:'Nunito',sans-serif;background:var(--cream);color:var(--gray-900);min-height:100vh;overflow-x:hidden}
+
+/* ── AUTH ── */
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:linear-gradient(145deg,var(--ocean) 0%,var(--ocean-light) 60%,#48C9B0 100%)}
+.auth-card{background:var(--white);border-radius:28px;padding:40px 36px;width:100%;max-width:400px;box-shadow:var(--shadow-lg)}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo .paw{font-size:52px;display:block;margin-bottom:8px}
+.auth-logo h1{font-size:26px;font-weight:900;color:var(--ocean)}
+.auth-logo p{color:var(--gray-500);font-size:14px;margin-top:4px}
+.auth-tabs{display:flex;background:var(--gray-100);border-radius:12px;padding:4px;margin-bottom:24px;gap:4px}
+.auth-tab{flex:1;padding:10px;border:none;background:none;border-radius:9px;font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;color:var(--gray-500);cursor:pointer;transition:all .2s}
+.auth-tab.active{background:var(--white);color:var(--ocean);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-weight:700;font-size:13px;color:var(--gray-700);margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:12px 16px;border:2px solid var(--gray-100);border-radius:12px;font-family:'Nunito',sans-serif;font-size:15px;color:var(--gray-900);background:var(--cream);transition:border-color .2s;outline:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--ocean-light);background:var(--white)}
+.form-group textarea{resize:vertical;min-height:80px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border:none;border-radius:12px;font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;cursor:pointer;transition:all .2s;text-decoration:none}
+.btn-primary{background:linear-gradient(135deg,var(--ocean),var(--ocean-light));color:white;width:100%}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(27,79,114,.4)}
+.btn-danger{background:var(--rose-pale);color:var(--rose)}
+.btn-danger:hover{background:var(--rose);color:white}
+.btn-success{background:var(--mint-pale);color:var(--mint)}
+.btn-success:hover{background:var(--mint);color:white}
+.btn-amber{background:var(--amber-pale);color:var(--amber)}
+.btn-amber:hover{background:var(--amber);color:white}
+.btn-sm{padding:8px 14px;font-size:13px;border-radius:9px}
+.btn-icon{width:36px;height:36px;padding:0;border-radius:50%;font-size:14px}
+
+/* ── APP ── */
+#app-screen{display:none;min-height:100vh;padding-bottom:80px}
+.topbar{background:white;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,.06);position:sticky;top:0;z-index:100}
+.topbar-brand{display:flex;align-items:center;gap:10px}
+.topbar-brand .paw-small{font-size:24px}
+.topbar-brand h2{font-size:18px;font-weight:900;color:var(--ocean)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-user{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--ocean),var(--ocean-light));color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;cursor:pointer}
+.notif-bell-wrap{position:relative;cursor:pointer;width:38px;height:38px;display:flex;align-items:center;justify-content:center}
+.notif-bell-wrap i{font-size:22px;color:var(--gray-700)}
+#notif-badge{background:var(--rose);color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;position:absolute;top:0;right:0;border:2px solid white;pointer-events:none}
+
+.page{display:none;padding:20px;max-width:620px;margin:0 auto;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:white;display:flex;box-shadow:0 -2px 16px rgba(0,0,0,.08);z-index:100}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 6px;border:none;background:none;cursor:pointer;color:var(--gray-300);font-family:'Nunito',sans-serif;font-size:10px;font-weight:700;transition:color .2s;gap:2px}
+.nav-item.active{color:var(--ocean)}
+.nav-item i{font-size:20px}
+.nav-item .nav-dot{width:5px;height:5px;background:var(--ocean);border-radius:50%;display:none}
+.nav-item.active .nav-dot{display:block}
+
+/* ── DASHBOARD ── */
+.greeting{margin-bottom:20px}
+.greeting h2{font-size:22px;font-weight:900;color:var(--gray-900)}
+.greeting p{color:var(--gray-500);font-size:14px;margin-top:2px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}.stats-grid .stat-card:last-child:nth-child(odd){grid-column:1/-1}
+.stat-card{background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);position:relative;overflow:hidden;cursor:default}
+.stat-card::before{content:'';position:absolute;top:-12px;right:-12px;width:64px;height:64px;border-radius:50%;opacity:.10}
+.stat-card.ocean::before{background:var(--ocean)}
+.stat-card.mint::before{background:var(--mint)}
+.stat-card.amber::before{background:var(--amber)}
+.stat-card.rose::before{background:var(--rose)}
+.stat-card .stat-icon{font-size:24px;margin-bottom:10px}
+.stat-card .stat-val{font-size:26px;font-weight:900;line-height:1}
+.stat-card .stat-label{font-size:12px;color:var(--gray-500);font-weight:600;margin-top:4px}
+.stat-card.ocean .stat-val{color:var(--ocean)}
+.stat-card.mint .stat-val{color:var(--mint)}
+.stat-card.amber .stat-val{color:var(--amber)}
+.stat-card.rose .stat-val{color:var(--rose)}
+.section-title{font-size:16px;font-weight:800;color:var(--gray-900);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title .badge{background:var(--ocean-pale);color:var(--ocean);font-size:12px;padding:2px 8px;border-radius:20px}
+.chart-card{background:white;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+.chart-card h3{font-size:14px;font-weight:800;color:var(--gray-700);margin-bottom:16px}
+
+/* ── PET CARDS ── */
+.search-bar{position:relative;margin-bottom:16px}
+.search-bar input{width:100%;padding:12px 16px 12px 44px;border:2px solid var(--gray-100);border-radius:14px;font-family:'Nunito',sans-serif;font-size:15px;background:white;outline:none;transition:border-color .2s}
+.search-bar input:focus{border-color:var(--ocean-light)}
+.search-bar i{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--gray-300)}
+.fab{position:fixed;bottom:90px;right:20px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--ocean),var(--ocean-light));color:white;border:none;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(27,79,114,.4);transition:all .2s;z-index:99;display:flex;align-items:center;justify-content:center}
+.fab:hover{transform:scale(1.08)}
+.pet-card{background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:12px;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.pet-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.pet-card-top{display:flex;align-items:center;gap:14px}
+.pet-avatar{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:white;flex-shrink:0}
+.pet-info{flex:1;min-width:0}
+.pet-info h3{font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pet-info .pet-owner{font-size:13px;color:var(--gray-500);display:flex;align-items:center;gap:4px;margin-top:2px}
+.pet-info .pet-breed{font-size:12px;color:var(--gray-500);font-style:italic;margin-top:1px}
+.pet-meta{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.tag-ocean{background:var(--ocean-pale);color:var(--ocean)}
+.tag-mint{background:var(--mint-pale);color:var(--mint)}
+.tag-amber{background:var(--amber-pale);color:var(--amber)}
+.tag-rose{background:var(--rose-pale);color:var(--rose)}
+.tag-purple{background:var(--purple-pale);color:var(--purple)}
+.pet-actions{display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:2px solid var(--cream);flex-wrap:wrap}
+
+/* ── AGENDAMENTOS ── */
+.agend-card{background:white;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:10px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--ocean)}
+.agend-card.passado{border-left-color:var(--gray-300);opacity:.7}
+.agend-card.hoje{border-left-color:var(--amber);background:#FFFDF5}
+.agend-date{text-align:center;min-width:48px}
+.agend-date .day{font-size:22px;font-weight:900;color:var(--ocean);line-height:1}
+.agend-date .mon{font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase}
+.agend-info{flex:1}
+.agend-info strong{font-size:14px;font-weight:800;display:block}
+.agend-info span{font-size:12px;color:var(--gray-500)}
+.agend-actions{display:flex;gap:6px}
+
+/* ── BANHO TIMELINE ── */
+.bath-timeline{margin-top:12px}
+.bath-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--gray-100)}
+.bath-item:last-child{border-bottom:none}
+.bath-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.bath-info{flex:1}
+.bath-info strong{font-size:14px;font-weight:700}
+.bath-info span{font-size:12px;color:var(--gray-500);display:block}
+.bath-price{font-weight:800;color:var(--mint)}
+
+/* ── FINANCEIRO ── */
+.fin-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.fin-card{background:white;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.fin-card .fin-label{font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px}
+.fin-card .fin-val{font-size:24px;font-weight:900;margin-top:6px}
+.fin-card.receita .fin-val{color:var(--mint)}
+.fin-card.despesa .fin-val{color:var(--rose)}
+.fin-card.saldo{grid-column:1/-1}
+.fin-card.saldo .fin-val{font-size:28px;color:var(--ocean)}
+.fin-item{background:white;border-radius:var(--radius-sm);padding:14px 16px;box-shadow:var(--shadow);margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.fin-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.fin-item-info{flex:1}
+.fin-item-info strong{font-size:14px;font-weight:800;display:block}
+.fin-item-info span{font-size:12px;color:var(--gray-500)}
+.fin-item-val{font-weight:900;font-size:16px}
+.fin-item-val.pos{color:var(--mint)}
+.fin-item-val.neg{color:var(--rose)}
+
+/* ── NOTIFICAÇÕES ── */
+.notif-item{background:white;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:10px;display:flex;gap:14px;align-items:flex-start}
+.notif-icon{font-size:26px;flex-shrink:0}
+.notif-info{flex:1}
+.notif-info h4{font-size:15px;font-weight:800}
+.notif-info p{font-size:13px;color:var(--gray-500);margin-top:3px;line-height:1.5}
+.notif-item.urgent{border-left:4px solid var(--rose)}
+.notif-item.warning{border-left:4px solid var(--amber)}
+.notif-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.btn-whatsapp{background:#25D366;color:white;border:none;border-radius:10px;padding:8px 14px;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .2s}
+.btn-whatsapp:hover{background:#128C7E}
+.btn-email-send{background:var(--ocean-pale);color:var(--ocean);border:none;border-radius:10px;padding:8px 14px;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .2s}
+.btn-email-send:hover{background:var(--ocean);color:white}
+.btn-email-send:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── CONFIGURAÇÕES ── */
+.config-section{background:white;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
+.config-item{padding:16px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--gray-100);cursor:pointer;transition:background .15s}
+.config-item:last-child{border-bottom:none}
+.config-item:hover{background:var(--cream)}
+.config-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.config-item-info{flex:1}
+.config-item-info strong{font-size:15px;font-weight:700;display:block}
+.config-item-info span{font-size:12px;color:var(--gray-500)}
+.config-item i.fa-chevron-right{color:var(--gray-300)}
+
+/* ── EMAILJS SETUP ── */
+.emailjs-setup{background:linear-gradient(135deg,#EBF5FB,#D6EAF8);border-radius:var(--radius);padding:16px;margin-bottom:16px;border:2px solid var(--ocean-pale)}
+.emailjs-setup h4{font-size:14px;font-weight:800;color:var(--ocean);margin-bottom:8px}
+.emailjs-setup p{font-size:12px;color:var(--gray-700);line-height:1.6;margin-bottom:10px}
+.emailjs-setup details summary{font-size:13px;font-weight:700;color:var(--ocean);cursor:pointer;margin-bottom:8px}
+.emailjs-setup ol{font-size:12px;color:var(--gray-700);padding-left:18px;line-height:2}
+.emailjs-setup code{background:var(--ocean-pale);padding:1px 6px;border-radius:4px;font-size:11px;color:var(--ocean)}
+.input-status{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-top:6px}
+.input-status.ok{color:var(--mint)}
+.input-status.err{color:var(--rose)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.active{display:flex}
+.modal{background:white;border-radius:28px 28px 0 0;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:28px 24px 44px;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:40px;height:4px;background:var(--gray-100);border-radius:2px;margin:0 auto 20px}
+.modal-title{font-size:20px;font-weight:900;color:var(--gray-900);margin-bottom:20px}
+.modal-actions{display:flex;gap:10px;margin-top:20px}
+.modal-actions .btn{flex:1}
+.delete-warning{background:var(--rose-pale);border:2px solid var(--rose);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center}
+.delete-warning p{color:var(--rose);font-weight:700;font-size:14px;line-height:1.5}
+.delete-warning strong{font-size:16px;display:block;margin-bottom:4px}
+
+/* ── TOAST ── */
+#toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--gray-900);color:white;padding:12px 22px;border-radius:14px;font-weight:700;font-size:14px;z-index:9999;transition:transform .3s;white-space:nowrap;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.success{background:var(--mint)}
+#toast.error{background:var(--rose)}
+#toast.warning{background:var(--amber)}
+
+/* ── MISC ── */
+.empty-state{text-align:center;padding:50px 20px}
+.empty-state .empty-icon{font-size:60px;margin-bottom:16px;opacity:.5}
+.empty-state h3{font-size:18px;font-weight:800;color:var(--gray-700);margin-bottom:8px}
+.empty-state p{color:var(--gray-500);font-size:14px}
+.divider{height:1px;background:var(--gray-100);margin:16px 0}
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.color-picker{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.color-opt{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .2s}
+.color-opt.selected{border-color:var(--gray-900);transform:scale(1.15)}
+.tabs-filter{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px}
+.tabs-filter::-webkit-scrollbar{display:none}
+.filter-tab{padding:7px 16px;border-radius:20px;border:2px solid var(--gray-100);background:white;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;color:var(--gray-500);cursor:pointer;white-space:nowrap;transition:all .2s}
+.filter-tab.active{background:var(--ocean);border-color:var(--ocean);color:white}
+.info-box{background:var(--amber-pale);border:2px solid var(--amber);border-radius:12px;padding:12px 16px;font-size:13px;color:var(--gray-700);margin-bottom:16px;line-height:1.5}
+.info-box strong{color:var(--amber)}
+.toggle-wrap{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--gray-300);border-radius:24px;cursor:pointer;transition:.2s}
+.toggle-slider:before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s}
+.toggle input:checked + .toggle-slider{background:var(--mint)}
+.toggle input:checked + .toggle-slider:before{transform:translateX(20px)}
+.toggle-label{font-size:14px;font-weight:700;color:var(--gray-700)}
+</style>
+</head>
+<body>
+
+<!-- ══ AUTH ══ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="paw">🐾</span>
+      <h1>PetShop Manager</h1>
+      <p>Gestão completa para seu petshop</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login',this)">Entrar</button>
+      <button class="auth-tab" onclick="switchAuthTab('register',this)">Cadastrar</button>
+    </div>
+    <div id="login-form">
+      <div class="form-group"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com"></div>
+      <div class="form-group"><label>Senha</label><input type="password" id="login-pass" placeholder="••••••••"></div>
+      <button class="btn btn-primary" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i> Entrar</button>
+      <p style="text-align:center;margin-top:14px"><button onclick="showForgotPassword()" style="background:none;border:none;color:var(--ocean-light);font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;text-decoration:underline">Esqueci minha senha</button></p>
+      <p style="text-align:center;font-size:12px;color:var(--gray-500);margin-top:8px">Demo: demo@petshop.com / 123456</p>
+    </div>
+    <div id="forgot-form" style="display:none">
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px;line-height:1.5">Digite seu e-mail cadastrado e enviaremos um link para redefinir sua senha.</p>
+      <div class="form-group"><label>E-mail</label><input type="email" id="forgot-email" placeholder="seu@email.com"></div>
+      <button class="btn btn-primary" onclick="doResetPassword()"><i class="fas fa-paper-plane"></i> Enviar link de recuperação</button>
+      <p style="text-align:center;margin-top:12px"><button onclick="showForgotPassword(false)" style="background:none;border:none;color:var(--gray-500);font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">← Voltar para o login</button></p>
+    </div>
+    <div id="register-form" style="display:none">
+      <div class="form-group"><label>Nome do Petshop</label><input type="text" id="reg-nome" placeholder="Ex: PetShop da Maria"></div>
+      <div class="form-group"><label>E-mail</label><input type="email" id="reg-email" placeholder="seu@email.com"></div>
+      <div class="form-group"><label>Senha</label><input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres"></div>
+      <button class="btn btn-primary" onclick="doRegister()"><i class="fas fa-user-plus"></i> Criar Conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LICENÇA EXPIRADA ══ -->
+<div id="expired-screen" style="display:none;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:linear-gradient(145deg,var(--ocean) 0%,var(--ocean-light) 60%,#48C9B0 100%)">
+  <div class="auth-card" style="text-align:center">
+    <div style="font-size:56px;margin-bottom:16px">⏰</div>
+    <h2 style="font-size:22px;font-weight:900;color:var(--rose);margin-bottom:10px">Acesso expirado</h2>
+    <p style="color:var(--gray-500);font-size:14px;line-height:1.6;margin-bottom:20px" id="expired-msg">Seu período de acesso encerrou. Entre em contato para renovar.</p>
+    <button class="btn btn-primary" onclick="doLogout()" style="margin-bottom:10px"><i class="fas fa-sign-out-alt"></i> Sair</button>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-brand"><span class="paw-small">🐾</span><h2 id="topbar-name">PetShop</h2></div>
+    <div class="topbar-right">
+      <div class="notif-bell-wrap" onclick="showPage('notificacoes')">
+        <i class="fas fa-bell"></i>
+        <div id="notif-badge"></div>
+      </div>
+      <div class="topbar-user" id="topbar-avatar" onclick="showPage('config')">P</div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="greeting">
+      <h2 id="dash-greeting">Olá! 👋</h2>
+      <p id="dash-date">Carregando...</p>
+    </div>
+    <div class="stats-grid" id="dash-stats"></div>
+    <div class="section-title"><i class="fas fa-chart-bar" style="color:var(--ocean)"></i> Banhos por mês</div>
+    <div class="chart-card"><canvas id="chart-banhos" height="180"></canvas></div>
+    <div class="section-title"><i class="fas fa-clock" style="color:var(--amber)"></i> Pets precisando de banho <span class="badge" id="dash-pending-count">0</span></div>
+    <div id="dash-pending-list"></div>
+  </div>
+
+  <!-- PETS -->
+  <div class="page" id="page-pets">
+    <div class="search-bar"><i class="fas fa-search"></i><input type="text" placeholder="Buscar pet ou tutor..." oninput="filterPets(this.value)"></div>
+    <div class="tabs-filter">
+      <button class="filter-tab active" onclick="filterPetStatus('todos',this)">Todos</button>
+      <button class="filter-tab" onclick="filterPetStatus('ok',this)">✅ Em dia</button>
+      <button class="filter-tab" onclick="filterPetStatus('atencao',this)">⚠️ Atenção</button>
+      <button class="filter-tab" onclick="filterPetStatus('urgente',this)">🔴 Urgente</button>
+    </div>
+    <div id="pets-list"></div>
+    <div id="pets-empty" class="empty-state" style="display:none">
+      <div class="empty-icon">🐶</div>
+      <h3>Nenhum pet cadastrado</h3>
+      <p>Toque no + para adicionar o primeiro pet</p>
+    </div>
+  </div>
+
+  <!-- AGENDAMENTOS -->
+  <div class="page" id="page-agendamentos">
+    <div class="tabs-filter">
+      <button class="filter-tab active" onclick="filterAgend('proximos',this)">📅 Próximos</button>
+      <button class="filter-tab" onclick="filterAgend('todos',this)">Todos</button>
+      <button class="filter-tab" onclick="filterAgend('passados',this)">Passados</button>
+    </div>
+    <div id="agend-list"></div>
+  </div>
+
+  <!-- FINANCEIRO -->
+  <div class="page" id="page-financeiro">
+    <div class="tabs-filter" style="margin-bottom:16px">
+      <button class="filter-tab active" id="fin-period-todos" onclick="filterFinPeriodo('todos',this)">Todos</button>
+      <button class="filter-tab" id="fin-period-mes" onclick="filterFinPeriodo('mes',this)">Este mês</button>
+      <button class="filter-tab" id="fin-period-semana" onclick="filterFinPeriodo('semana',this)">Esta semana</button>
+    </div>
+    <div class="fin-summary" id="fin-summary"></div>
+    <div class="section-title"><i class="fas fa-chart-pie" style="color:var(--purple)"></i> Distribuição</div>
+    <div class="chart-card"><canvas id="chart-fin" height="200"></canvas></div>
+    <div class="section-title"><i class="fas fa-list" style="color:var(--ocean)"></i> Lançamentos</div>
+    <div class="tabs-filter">
+      <button class="filter-tab active" onclick="filterFin('todos',this)">Todos</button>
+      <button class="filter-tab" onclick="filterFin('receita',this)">💰 Receitas</button>
+      <button class="filter-tab" onclick="filterFin('despesa',this)">💸 Despesas</button>
+    </div>
+    <div id="fin-list"></div>
+  </div>
+
+  <!-- HISTÓRICO GERAL -->
+  <div class="page" id="page-historico-geral">
+    <div class="search-bar"><i class="fas fa-search"></i><input type="text" id="hist-search" placeholder="Buscar pet ou tutor..." oninput="renderHistoricoGeral()"></div>
+    <div class="tabs-filter">
+      <button class="filter-tab active" onclick="filterHistPeriodo('todos',this)">Todos</button>
+      <button class="filter-tab" onclick="filterHistPeriodo('mes',this)">Este mês</button>
+      <button class="filter-tab" onclick="filterHistPeriodo('semana',this)">Esta semana</button>
+    </div>
+    <div id="hist-geral-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"></div>
+    <div id="hist-geral-list"></div>
+  </div>
+
+  <!-- NOTIFICAÇÕES -->
+  <div class="page" id="page-notificacoes">
+    <div class="section-title"><i class="fas fa-bell" style="color:var(--rose)"></i> Alertas de banho</div>
+    <div id="notif-list"></div>
+    <div class="divider"></div>
+    <div class="section-title"><i class="fas fa-comment-dots" style="color:var(--mint)"></i> Mensagem padrão</div>
+    <div class="chart-card">
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:10px">Use <strong>{nome}</strong> para o nome do pet e <strong>{dono}</strong> para o tutor.</p>
+      <div class="form-group"><textarea id="msg-template" rows="5"></textarea></div>
+      <button class="btn btn-success btn-sm" onclick="saveMsgTemplate()"><i class="fas fa-save"></i> Salvar mensagem</button>
+    </div>
+  </div>
+
+  <!-- CONFIGURAÇÕES -->
+  <div class="page" id="page-config">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--ocean),var(--ocean-light));color:white;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;margin:0 auto 12px" id="config-avatar">P</div>
+      <h3 id="config-name" style="font-size:20px;font-weight:900"></h3>
+      <p id="config-email" style="color:var(--gray-500);font-size:14px"></p>
+    </div>
+
+    <!-- EmailJS Config -->
+    <div class="emailjs-setup">
+      <h4><i class="fas fa-envelope"></i> Configurar envio de e-mail</h4>
+      <p>Para enviar lembretes por e-mail, configure o <strong>EmailJS</strong> (gratuito, até 200 e-mails/mês).</p>
+      <details>
+        <summary>📋 Como configurar (passo a passo)</summary>
+        <ol>
+          <li>Acesse <strong>emailjs.com</strong> e crie uma conta gratuita</li>
+          <li>Vá em <strong>Email Services</strong> e adicione seu Gmail/Outlook</li>
+          <li>Vá em <strong>Email Templates</strong> → Create Template</li>
+          <li>No template use: <code>{{to_email}}</code>, <code>{{to_name}}</code>, <code>{{message}}</code></li>
+          <li>Copie o <strong>Public Key</strong> em Account → General</li>
+          <li>Copie o <strong>Service ID</strong> e <strong>Template ID</strong></li>
+          <li>Cole abaixo e clique em Salvar</li>
+        </ol>
+      </details>
+      <div class="form-group" style="margin-top:10px"><label>Public Key</label><input type="text" id="ejs-pubkey" placeholder="user_xxxxxxxxxxxx"></div>
+      <div class="input-row">
+        <div class="form-group"><label>Service ID</label><input type="text" id="ejs-service" placeholder="service_xxx"></div>
+        <div class="form-group"><label>Template ID</label><input type="text" id="ejs-template" placeholder="template_xxx"></div>
+      </div>
+      <div id="ejs-status" class="input-status" style="display:none"></div>
+      <button class="btn btn-primary" style="margin-top:4px" onclick="saveEmailJSConfig()"><i class="fas fa-save"></i> Salvar configuração</button>
+    </div>
+
+    <div class="config-section">
+      <div class="config-item" onclick="openMsgConfig()"><div class="config-icon" style="background:var(--mint-pale);color:var(--mint)"><i class="fab fa-whatsapp"></i></div><div class="config-item-info"><strong>Mensagem WhatsApp/E-mail</strong><span>Editar texto de lembrete</span></div><i class="fas fa-chevron-right"></i></div>
+      <div class="config-item" onclick="showPage('notificacoes')"><div class="config-icon" style="background:var(--rose-pale);color:var(--rose)"><i class="fas fa-bell"></i></div><div class="config-item-info"><strong>Notificações</strong><span>Ver alertas pendentes</span></div><i class="fas fa-chevron-right"></i></div>
+      <div class="config-item" onclick="exportCSV()"><div class="config-icon" style="background:var(--mint-pale);color:var(--mint)"><i class="fas fa-file-csv"></i></div><div class="config-item-info"><strong>Exportar relatório CSV</strong><span>Planilha com todos os dados</span></div><i class="fas fa-chevron-right"></i></div>
+      <div class="config-item" onclick="exportData()"><div class="config-icon" style="background:var(--ocean-pale);color:var(--ocean)"><i class="fas fa-download"></i></div><div class="config-item-info"><strong>Backup completo (JSON)</strong><span>Exportar todos os dados</span></div><i class="fas fa-chevron-right"></i></div>
+      <div class="config-item" onclick="importData()"><div class="config-icon" style="background:var(--purple-pale);color:var(--purple)"><i class="fas fa-upload"></i></div><div class="config-item-info"><strong>Restaurar backup</strong><span>Importar arquivo JSON</span></div><i class="fas fa-chevron-right"></i></div>
+    </div>
+    <div class="config-section">
+      <div class="config-item" onclick="doLogout()"><div class="config-icon" style="background:var(--rose-pale);color:var(--rose)"><i class="fas fa-sign-out-alt"></i></div><div class="config-item-info"><strong>Sair da conta</strong><span>Fazer logout</span></div><i class="fas fa-chevron-right"></i></div>
+    </div>
+
+    <!-- PAINEL ADMIN (visível só para o administrador) -->
+    <div id="admin-panel" style="display:none;margin-top:8px">
+      <div class="section-title" style="margin-bottom:12px"><i class="fas fa-shield-alt" style="color:var(--purple)"></i> Painel Admin — Clientes</div>
+      <div style="background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px">
+        <p style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:10px">Adicionar novo cliente</p>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input type="email" id="admin-new-email" placeholder="cliente@email.com" style="flex:1;padding:11px 14px;border:2px solid var(--gray-100);border-radius:12px;font-family:'Nunito',sans-serif;font-size:14px;outline:none">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="admin-new-plano" style="flex:1;padding:11px 14px;border:2px solid var(--gray-100);border-radius:12px;font-family:'Nunito',sans-serif;font-size:14px;outline:none;background:var(--cream)">
+            <option value="trial">🎁 Trial — 30 dias grátis</option>
+            <option value="mensal">📅 Mensal — 30 dias</option>
+            <option value="trimestral">📦 Trimestral — 90 dias</option>
+            <option value="semestral">⭐ Semestral — 180 dias</option>
+            <option value="anual">🏆 Anual — 365 dias</option>
+          </select>
+          <button class="btn btn-success btn-sm" onclick="adminAddEmail()" style="white-space:nowrap;padding:11px 16px"><i class="fas fa-plus"></i> Adicionar</button>
+        </div>
+        <div id="admin-email-list"><div style="text-align:center;padding:20px;color:var(--gray-300)"><i class="fas fa-spinner fa-spin"></i> Carregando...</div></div>
+      </div>
+    </div>
+
+    <p style="text-align:center;color:var(--gray-300);font-size:12px;margin-top:16px">PetShop Manager v3.0</p>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard"><i class="fas fa-home"></i><span>Início</span><div class="nav-dot"></div></button>
+    <button class="nav-item" onclick="showPage('pets')" id="nav-pets"><i class="fas fa-paw"></i><span>Pets</span><div class="nav-dot"></div></button>
+    <button class="nav-item" onclick="showPage('agendamentos')" id="nav-agendamentos"><i class="fas fa-calendar-alt"></i><span>Agenda</span><div class="nav-dot"></div></button>
+    <button class="nav-item" onclick="showPage('historico-geral')" id="nav-historico-geral"><i class="fas fa-bath"></i><span>Histórico</span><div class="nav-dot"></div></button>
+    <button class="nav-item" onclick="showPage('financeiro')" id="nav-financeiro"><i class="fas fa-wallet"></i><span>Finanças</span><div class="nav-dot"></div></button>
+    <button class="nav-item" onclick="showPage('config')" id="nav-config"><i class="fas fa-cog"></i><span>Config</span><div class="nav-dot"></div></button>
+  </div>
+
+  <button class="fab" id="fab-btn" onclick="openAddModal()"><i class="fas fa-plus"></i></button>
+</div>
+
+<!-- ══ MODALS ══ -->
+
+<!-- Modal Pet -->
+<div class="modal-overlay" id="modal-pet">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-pet-title">🐾 Novo Pet</div>
+    <input type="hidden" id="pet-edit-id">
+    <div class="input-row">
+      <div class="form-group"><label>Nome do Pet *</label><input type="text" id="pet-nome" placeholder="Ex: Thor"></div>
+      <div class="form-group"><label>Raça</label><input type="text" id="pet-raca" placeholder="Ex: Golden"></div>
+    </div>
+    <div class="input-row">
+      <div class="form-group"><label>Tutor *</label><input type="text" id="pet-dono" placeholder="Ex: Maria Silva"></div>
+      <div class="form-group"><label>WhatsApp *</label><input type="tel" id="pet-wpp" placeholder="(41) 99999-9999"></div>
+    </div>
+    <div class="form-group"><label>E-mail do tutor</label><input type="email" id="pet-email" placeholder="tutor@email.com"></div>
+    <div class="input-row">
+      <div class="form-group"><label>Porte</label>
+        <select id="pet-porte"><option value="pequeno">Pequeno</option><option value="medio">Médio</option><option value="grande">Grande</option><option value="gigante">Gigante</option></select>
+      </div>
+      <div class="form-group"><label>Preço do banho (R$)</label><input type="number" id="pet-preco" placeholder="0.00" min="0" step="0.01"></div>
+    </div>
+    <div class="form-group"><label>Observações</label><textarea id="pet-obs" placeholder="Alergias, comportamento, cuidados especiais..."></textarea></div>
+    <div class="form-group"><label>Cor do avatar</label>
+      <div class="color-picker">
+        <div class="color-opt selected" style="background:#1B4F72" data-color="#1B4F72" onclick="selectColor(this)"></div>
+        <div class="color-opt" style="background:#27AE60" data-color="#27AE60" onclick="selectColor(this)"></div>
+        <div class="color-opt" style="background:#E67E22" data-color="#E67E22" onclick="selectColor(this)"></div>
+        <div class="color-opt" style="background:#8E44AD" data-color="#8E44AD" onclick="selectColor(this)"></div>
+        <div class="color-opt" style="background:#E74C3C" data-color="#E74C3C" onclick="selectColor(this)"></div>
+        <div class="color-opt" style="background:#2E86AB" data-color="#2E86AB" onclick="selectColor(this)"></div>
+        <div class="color-opt" style="background:#D4AC0D" data-color="#D4AC0D" onclick="selectColor(this)"></div>
+        <div class="color-opt" style="background:#117A65" data-color="#117A65" onclick="selectColor(this)"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="closeModal('modal-pet')"><i class="fas fa-times"></i> Cancelar</button>
+      <button class="btn btn-primary" onclick="savePet()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Banho -->
+<div class="modal-overlay" id="modal-banho">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🛁 Registrar Banho</div>
+    <input type="hidden" id="banho-pet-id">
+    <div class="form-group"><label>Pet</label><input type="text" id="banho-pet-nome" readonly style="background:var(--gray-100)"></div>
+    <div class="input-row">
+      <div class="form-group"><label>Data *</label><input type="date" id="banho-data"></div>
+      <div class="form-group"><label>Valor (R$) *</label><input type="number" id="banho-valor" placeholder="0.00" min="0" step="0.01"></div>
+    </div>
+    <div class="form-group"><label>Serviço</label>
+      <select id="banho-tipo">
+        <option value="banho">🛁 Banho</option>
+        <option value="banho_tosa">✂️ Banho + Tosa</option>
+        <option value="tosa">✂️ Tosa</option>
+        <option value="banho_hidratacao">💆 Banho + Hidratação</option>
+        <option value="consulta">🩺 Consulta</option>
+        <option value="outro">📦 Outro</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Observações</label><textarea id="banho-obs" placeholder="Tudo correu bem, pet colaborativo..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="closeModal('modal-banho')"><i class="fas fa-times"></i> Cancelar</button>
+      <button class="btn btn-success" onclick="saveBanho()"><i class="fas fa-check"></i> Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Agendamento -->
+<div class="modal-overlay" id="modal-agend">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="agend-modal-title">📅 Novo Agendamento</div>
+    <input type="hidden" id="agend-edit-id">
+    <div class="form-group"><label>Pet *</label>
+      <select id="agend-pet-id"><option value="">Selecione o pet...</option></select>
+    </div>
+    <div class="input-row">
+      <div class="form-group"><label>Data *</label><input type="date" id="agend-data"></div>
+      <div class="form-group"><label>Horário *</label><input type="time" id="agend-hora" value="09:00"></div>
+    </div>
+    <div class="form-group"><label>Serviço</label>
+      <select id="agend-tipo">
+        <option value="banho">🛁 Banho</option>
+        <option value="banho_tosa">✂️ Banho + Tosa</option>
+        <option value="tosa">✂️ Tosa</option>
+        <option value="banho_hidratacao">💆 Banho + Hidratação</option>
+        <option value="consulta">🩺 Consulta</option>
+        <option value="outro">📦 Outro</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Observações</label><textarea id="agend-obs" placeholder="Informações adicionais..."></textarea></div>
+    <div class="toggle-wrap">
+      <label class="toggle"><input type="checkbox" id="agend-lembrete" checked><span class="toggle-slider"></span></label>
+      <span class="toggle-label">Enviar lembrete para o tutor (WhatsApp)</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="closeModal('modal-agend')"><i class="fas fa-times"></i> Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAgend()"><i class="fas fa-save"></i> Agendar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Financeiro -->
+<div class="modal-overlay" id="modal-fin">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">💰 Novo Lançamento</div>
+    <input type="hidden" id="fin-edit-id">
+    <div class="auth-tabs" style="margin-bottom:16px">
+      <button class="auth-tab active" id="fin-tab-receita" onclick="switchFinTab('receita')">💰 Receita</button>
+      <button class="auth-tab" id="fin-tab-despesa" onclick="switchFinTab('despesa')">💸 Despesa</button>
+    </div>
+    <input type="hidden" id="fin-tipo" value="receita">
+    <div class="form-group"><label>Descrição *</label><input type="text" id="fin-desc" placeholder="Ex: Banho Thor, Ração, Aluguel..."></div>
+    <div class="input-row">
+      <div class="form-group"><label>Valor (R$) *</label><input type="number" id="fin-valor" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="form-group"><label>Data *</label><input type="date" id="fin-data"></div>
+    </div>
+    <div class="form-group"><label>Categoria</label>
+      <select id="fin-cat">
+        <option value="servico">Serviço</option>
+        <option value="produto">Produto</option>
+        <option value="fornecedor">Fornecedor</option>
+        <option value="aluguel">Aluguel</option>
+        <option value="funcionario">Funcionário</option>
+        <option value="marketing">Marketing</option>
+        <option value="outros">Outros</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="closeModal('modal-fin')"><i class="fas fa-times"></i> Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFin()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Excluir -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="color:var(--rose)">⚠️ Confirmar exclusão</div>
+    <div class="delete-warning">
+      <strong>Esta ação não pode ser desfeita!</strong>
+      <p id="delete-desc"></p>
+    </div>
+    <div class="form-group">
+      <label>Digite <strong>REMOVER</strong> para confirmar</label>
+      <input type="text" id="delete-confirm-input" placeholder="REMOVER" oninput="checkDeleteInput(this)">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" style="background:var(--gray-100);color:var(--gray-700)" onclick="closeModal('modal-delete')"><i class="fas fa-times"></i> Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirm-delete" disabled onclick="executeDelete()"><i class="fas fa-trash"></i> Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Histórico -->
+<div class="modal-overlay" id="modal-historico">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="hist-title">🛁 Histórico</div>
+    <div id="hist-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('modal-historico')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════ STATE ════
+let currentUser = null;
+let selectedColor = '#1B4F72';
+let deleteTarget = null;
+let chartBanhos = null, chartFin = null;
+let currentPetFilter = 'todos';
+let currentAgendFilter = 'proximos';
+let ejsConfig = null;
+
+// ════ DB (Firestore) ════
+let _dbCache = null;
+function getDBSync(){ return _dbCache || {pets:[],banhos:[],financeiro:[],agendamentos:[],msgTemplate:''}; }
+async function getDB(){
+  if(_dbCache) return _dbCache;
+  const {doc,getDoc}=window._fbFns;
+  const ref=doc(window._fbDb,'users',currentUser.uid);
+  const snap=await getDoc(ref);
+  const def={pets:[],banhos:[],financeiro:[],agendamentos:[],msgTemplate:''};
+  if(!snap.exists()){ _dbCache=def; return def; }
+  const d=snap.data();
+  if(!d.agendamentos) d.agendamentos=[];
+  _dbCache=d;
+  return d;
+}
+async function saveDB(db){
+  _dbCache=db;
+  const {doc,setDoc}=window._fbFns;
+  const ref=doc(window._fbDb,'users',currentUser.uid);
+  await setDoc(ref,db);
+}
+window._ensureUserData = async function(){
+  if(!currentUser || !currentUser.uid) return;
+  _dbCache=null;
+  const {doc,getDoc,setDoc}=window._fbFns;
+  const ref=doc(window._fbDb,'users',currentUser.uid);
+  const snap=await getDoc(ref);
+  if(!snap.exists()){
+    const msgTemplate='Oi {dono}! 🐾 Tudo bem?\nFaz um tempinho que o {nome} não vem nos visitar para um banho!\nQue tal agendar um horário? Adoramos cuidar do {nome} 😍\nÉ só responder aqui que marcamos para você! 🛁✨';
+    await setDoc(ref,{pets:[],banhos:[],financeiro:[],agendamentos:[],msgTemplate});
+  } else {
+    const d=snap.data();
+    if(!d.agendamentos) d.agendamentos=[];
+    _dbCache=d;
+  }
+};
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function localToday(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(d){ if(!d) return ''; return new Date(d+'T12:00:00').toLocaleDateString('pt-BR'); }
+function fmtMoney(v){ return 'R$ '+Number(v||0).toFixed(2).replace('.',','); }
+function daysDiff(dateStr){ return Math.floor((new Date()-new Date(dateStr+'T12:00:00'))/(864e5)); }
+function getLastBath(petId,banhos){ return banhos.filter(b=>b.petId===petId).sort((a,b)=>b.data.localeCompare(a.data))[0]||null; }
+function getLastBathDays(petId,banhos){ const b=getLastBath(petId,banhos); return b?daysDiff(b.data):null; }
+
+// ════ EmailJS ════
+function loadEJSConfig(){
+  const raw=localStorage.getItem('petshop_ejs');
+  ejsConfig=raw?JSON.parse(raw):null;
+  if(ejsConfig){
+    document.getElementById('ejs-pubkey').value=ejsConfig.pubkey||'';
+    document.getElementById('ejs-service').value=ejsConfig.service||'';
+    document.getElementById('ejs-template').value=ejsConfig.template||'';
+    showEJSStatus(true,'E-mail configurado ✅');
+    emailjs.init(ejsConfig.pubkey);
+  }
+}
+function saveEmailJSConfig(){
+  const pubkey=document.getElementById('ejs-pubkey').value.trim();
+  const service=document.getElementById('ejs-service').value.trim();
+  const template=document.getElementById('ejs-template').value.trim();
+  if(!pubkey||!service||!template){ showToast('Preencha todos os campos do EmailJS','error'); return; }
+  ejsConfig={pubkey,service,template};
+  localStorage.setItem('petshop_ejs',JSON.stringify(ejsConfig));
+  emailjs.init(pubkey);
+  showEJSStatus(true,'Configuração salva! Teste enviando um lembrete.');
+  showToast('EmailJS configurado! ✅','success');
+}
+function showEJSStatus(ok,msg){
+  const el=document.getElementById('ejs-status');
+  el.style.display='flex';
+  el.className='input-status '+(ok?'ok':'err');
+  el.innerHTML=(ok?'<i class="fas fa-check-circle"></i>':'<i class="fas fa-exclamation-circle"></i>')+' '+msg;
+}
+async function sendEmail(petId){
+  const db=getDBSync(); const p=db.pets.find(x=>x.id===petId);
+  if(!p||!p.email){ showToast('Tutor sem e-mail cadastrado','error'); return; }
+  if(!ejsConfig){ showToast('Configure o EmailJS primeiro em Configurações','error'); return; }
+  const msg=buildMsg(p,db.msgTemplate);
+  const btn=document.querySelector(`[data-email="${petId}"]`);
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Enviando...'; }
+  try{
+    await emailjs.send(ejsConfig.service,ejsConfig.template,{
+      to_email: p.email,
+      to_name: p.dono,
+      pet_name: p.nome,
+      message: msg
+    });
+    showToast(`E-mail enviado para ${p.dono}! 📧`,'success');
+    if(btn){ btn.innerHTML='<i class="fas fa-check"></i> Enviado!'; btn.style.background='var(--mint)'; btn.style.color='white'; }
+  } catch(err){
+    showToast('Erro ao enviar e-mail. Verifique a configuração.','error');
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fas fa-envelope"></i> E-mail'; }
+  }
+}
+function buildMsg(p, tpl){
+  return (tpl||'Oi {dono}! 🐾 Está na hora do banho do {nome}!').replace(/{nome}/g,p.nome).replace(/{dono}/g,p.dono);
+}
+
+// ════ AUTH ════
+function switchAuthTab(tab,el){
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('forgot-form').style.display='none';
+  document.getElementById('login-form').style.display=tab==='login'?'block':'none';
+  document.getElementById('register-form').style.display=tab==='register'?'block':'none';
+}
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  if(!email||!pass){ showToast('Preencha e-mail e senha','error'); return; }
+  try{
+    setAuthLoading(true);
+    await window._fbFns.signInWithEmailAndPassword(window._fbAuth, email, pass);
+    // onAuthStateChanged cuida do resto
+  } catch(err){
+    setAuthLoading(false);
+    if(err.code==='auth/user-not-found'||err.code==='auth/wrong-password'||err.code==='auth/invalid-credential') showToast('E-mail ou senha incorretos','error');
+    else if(err.code==='auth/too-many-requests') showToast('Muitas tentativas. Aguarde um momento.','warning');
+    else showToast('Erro ao entrar: '+err.message,'error');
+  }
+}
+async function doRegister(){
+  const nome=document.getElementById('reg-nome').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  if(!nome||!email||!pass){ showToast('Preencha todos os campos','error'); return; }
+  if(pass.length<6){ showToast('Senha com mínimo 6 caracteres','error'); return; }
+  try{
+    setAuthLoading(true);
+    // Verificar se e-mail está autorizado
+    const {doc,getDoc}=window._fbFns;
+    const emailKey=email.toLowerCase().replace(/\./g,'_');
+    const allowSnap=await getDoc(doc(window._fbDb,'allowed_emails',emailKey));
+    if(!allowSnap.exists()){
+      setAuthLoading(false);
+      showToast('Este e-mail não está autorizado. Entre em contato com o administrador.','error');
+      return;
+    }
+    const cred=await window._fbFns.createUserWithEmailAndPassword(window._fbAuth, email, pass);
+    await window._fbFns.updateProfile(cred.user, {displayName: nome});
+    // onAuthStateChanged cuida do resto
+  } catch(err){
+    setAuthLoading(false);
+    if(err.code==='auth/email-already-in-use') showToast('E-mail já cadastrado','error');
+    else if(err.code==='auth/invalid-email') showToast('E-mail inválido','error');
+    else showToast('Erro ao cadastrar: '+err.message,'error');
+  }
+}
+async function doLogout(){
+  await window._fbFns.signOut(window._fbAuth);
+  _dbCache=null;
+  showToast('Até logo! 👋');
+}
+function showForgotPassword(show=true){
+  document.getElementById('login-form').style.display=show?'none':'block';
+  document.getElementById('forgot-form').style.display=show?'block':'none';
+  if(show){
+    document.getElementById('forgot-email').value=document.getElementById('login-email').value||'';
+  }
+}
+async function doResetPassword(){
+  const email=document.getElementById('forgot-email').value.trim();
+  if(!email){ showToast('Informe o e-mail cadastrado','error'); return; }
+  try{
+    await window._fbFns.sendPasswordResetEmail(window._fbAuth, email);
+    showToast('E-mail de recuperação enviado! 📧','success');
+    showForgotPassword(false);
+  } catch(err){
+    if(err.code==='auth/user-not-found'||err.code==='auth/invalid-credential') showToast('E-mail não encontrado','error');
+    else showToast('Erro ao enviar e-mail','error');
+  }
+}
+function setAuthLoading(on){
+  document.querySelectorAll('.btn-primary').forEach(b=>{ b.disabled=on; });
+  if(on) showToast('Aguarde...','');
+}
+
+async function showApp(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  const init=currentUser.name.charAt(0).toUpperCase();
+  ['topbar-avatar','config-avatar'].forEach(id=>document.getElementById(id).textContent=init);
+  document.getElementById('topbar-name').textContent=currentUser.name;
+  document.getElementById('config-name').textContent=currentUser.name;
+  document.getElementById('config-email').textContent=currentUser.email;
+  const db=await getDB();
+  if(!db.msgTemplate) { db.msgTemplate='Oi {dono}! 🐾 Tudo bem?\nFaz um tempinho que o {nome} não vem nos visitar para um banho!\nQue tal agendar um horário? Adoramos cuidar do {nome} 😍\nÉ só responder aqui que marcamos para você! 🛁✨'; await saveDB(db); }
+  document.getElementById('msg-template').value=db.msgTemplate;
+  const days=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  const today=new Date();
+  document.getElementById('dash-date').textContent=`${days[today.getDay()]}, ${today.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}`;
+  const h=today.getHours();
+  const saud=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
+  document.getElementById('dash-greeting').textContent=`${saud}! 👋`;
+  loadEJSConfig();
+  showPage('dashboard');
+  checkNotifications();
+  checkAgendHoje();
+}
+window.showApp = showApp;
+
+// ════ NAV ════
+function showPage(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const navEl=document.getElementById('nav-'+page);
+  if(navEl) navEl.classList.add('active');
+  const fabPages=['pets','dashboard','agendamentos','historico-geral','financeiro'];
+  document.getElementById('fab-btn').style.display=fabPages.includes(page)?'flex':'none';
+  if(page==='historico-geral') renderHistoricoGeral();
+  if(page==='dashboard') renderDashboard();
+  if(page==='pets') renderPets();
+  if(page==='agendamentos') renderAgendamentos();
+  if(page==='financeiro') renderFinanceiro();
+  if(page==='notificacoes') renderNotificacoes();
+  if(page==='config') { loadEJSConfig(); loadAdminPanel(); }
+}
+function openAddModal(){
+  const active=document.querySelector('.page.active');
+  if(active.id==='page-financeiro') return openFinModal();
+  if(active.id==='page-agendamentos') return openAgendModal();
+  openPetModal();
+}
+
+// ════ PETS ════
+function openPetModal(id=null){
+  document.getElementById('pet-edit-id').value=id||'';
+  document.getElementById('modal-pet-title').textContent=id?'✏️ Editar Pet':'🐾 Novo Pet';
+  if(id){
+    const db=getDBSync(); const p=db.pets.find(x=>x.id===id); if(!p) return;
+    document.getElementById('pet-nome').value=p.nome;
+    document.getElementById('pet-raca').value=p.raca||'';
+    document.getElementById('pet-dono').value=p.dono;
+    document.getElementById('pet-wpp').value=p.wpp;
+    document.getElementById('pet-email').value=p.email||'';
+    document.getElementById('pet-porte').value=p.porte||'pequeno';
+    document.getElementById('pet-preco').value=p.preco||'';
+    document.getElementById('pet-obs').value=p.obs||'';
+    selectedColor=p.color||'#1B4F72';
+  } else {
+    ['pet-nome','pet-raca','pet-dono','pet-wpp','pet-email','pet-preco','pet-obs'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('pet-porte').value='pequeno';
+    selectedColor='#1B4F72';
+  }
+  document.querySelectorAll('.color-opt').forEach(o=>o.classList.toggle('selected',o.dataset.color===selectedColor));
+  openModal('modal-pet');
+}
+function selectColor(el){ document.querySelectorAll('.color-opt').forEach(o=>o.classList.remove('selected')); el.classList.add('selected'); selectedColor=el.dataset.color; }
+async function savePet(){
+  const nome=document.getElementById('pet-nome').value.trim();
+  const dono=document.getElementById('pet-dono').value.trim();
+  const wpp=document.getElementById('pet-wpp').value.trim();
+  if(!nome){ showToast('Nome do pet é obrigatório','error'); return; }
+  if(!dono){ showToast('Nome do tutor é obrigatório','error'); return; }
+  if(!wpp){ showToast('WhatsApp é obrigatório','error'); return; }
+  const db=getDBSync();
+  const id=document.getElementById('pet-edit-id').value;
+  const pet={nome,raca:document.getElementById('pet-raca').value.trim(),dono,wpp,email:document.getElementById('pet-email').value.trim(),porte:document.getElementById('pet-porte').value,preco:parseFloat(document.getElementById('pet-preco').value)||0,obs:document.getElementById('pet-obs').value.trim(),color:selectedColor};
+  if(id){ const idx=db.pets.findIndex(p=>p.id===id); db.pets[idx]={...db.pets[idx],...pet}; showToast('Pet atualizado ✅','success'); }
+  else { db.pets.push({id:uid(),...pet,createdAt:new Date().toISOString()}); showToast('Pet cadastrado! 🐾','success'); }
+  await saveDB(db); closeModal('modal-pet'); refreshAll();
+}
+function renderPets(filter=''){
+  const db=getDBSync(); let pets=[...db.pets];
+  if(filter) pets=pets.filter(p=>p.nome.toLowerCase().includes(filter.toLowerCase())||p.dono.toLowerCase().includes(filter.toLowerCase()));
+  if(currentPetFilter!=='todos'){
+    pets=pets.filter(p=>{
+      const d=getLastBathDays(p.id,db.banhos);
+      if(currentPetFilter==='ok') return d!==null&&d<=14;
+      if(currentPetFilter==='atencao') return d===null||(d>14&&d<=20);
+      if(currentPetFilter==='urgente') return d===null||d>20;
+      return true;
+    });
+  }
+  const list=document.getElementById('pets-list');
+  const empty=document.getElementById('pets-empty');
+  if(!pets.length){ list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  const tipoLabel={'banho':'Banho','banho_tosa':'Banho + Tosa','tosa':'Tosa','banho_hidratacao':'Banho + Hidratação','consulta':'Consulta','outro':'Outro'};
+  list.innerHTML=pets.map(p=>{
+    const days=getLastBathDays(p.id,db.banhos);
+    const lastBath=getLastBath(p.id,db.banhos);
+    let statusTag='';
+    if(days===null||days>20) statusTag=`<span class="tag tag-rose"><i class="fas fa-exclamation-circle"></i> ${days===null?'Nunca banhado':days+' dias'}</span>`;
+    else if(days>14) statusTag=`<span class="tag tag-amber"><i class="fas fa-clock"></i> ${days} dias</span>`;
+    else statusTag=`<span class="tag tag-mint"><i class="fas fa-check-circle"></i> ${days} dias</span>`;
+    const emailBtn=p.email?`<button class="btn btn-sm" style="background:var(--ocean-pale);color:var(--ocean)" data-email="${esc(p.id)}" onclick="sendEmail('${esc(p.id)}')"><i class="fas fa-envelope"></i></button>`:'';
+    return `<div class="pet-card">
+      <div class="pet-card-top">
+        <div class="pet-avatar" style="background:${esc(p.color||'#1B4F72')}">${esc(p.nome.charAt(0).toUpperCase())}</div>
+        <div class="pet-info">
+          <h3>${esc(p.nome)}</h3>
+          <div class="pet-owner"><i class="fas fa-user" style="font-size:11px"></i> ${esc(p.dono)}</div>
+          ${p.raca?`<div class="pet-breed">${esc(p.raca)}</div>`:''}
+        </div>
+      </div>
+      <div class="pet-meta">
+        ${statusTag}
+        <span class="tag tag-ocean"><i class="fas fa-ruler"></i> ${esc(p.porte)}</span>
+        ${p.preco?`<span class="tag tag-purple"><i class="fas fa-tag"></i> ${fmtMoney(p.preco)}</span>`:''}
+      </div>
+      ${lastBath?`<p style="font-size:12px;color:var(--gray-500);margin-top:8px"><i class="fas fa-bath"></i> Último banho: ${fmtDate(lastBath.data)} (${tipoLabel[lastBath.tipo]||'Banho'})</p>`:'<p style="font-size:12px;color:var(--gray-300);margin-top:8px"><i class="fas fa-bath"></i> Nenhum banho registrado</p>'}
+      <div class="pet-actions">
+        <button class="btn btn-success btn-sm" onclick="openBanhoModal('${esc(p.id)}')"><i class="fas fa-bath"></i> Banho</button>
+        <button class="btn btn-amber btn-sm" onclick="openAgendModalForPet('${esc(p.id)}')"><i class="fas fa-calendar-plus"></i> Agendar</button>
+        <button class="btn btn-amber btn-sm" onclick="openHistorico('${esc(p.id)}')"><i class="fas fa-history"></i> Hist.</button>
+        <button class="btn btn-sm" style="background:#E8F8F5;color:#25D366" onclick="sendWhatsApp('${esc(p.id)}')"><i class="fab fa-whatsapp"></i></button>
+        ${emailBtn}
+        <button class="btn btn-sm" style="background:var(--ocean-pale);color:var(--ocean)" onclick="openPetModal('${esc(p.id)}')"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDelete('pet','${esc(p.id)}','o pet ${esc(p.nome)}')"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function filterPets(v){ renderPets(v); }
+function filterPetStatus(status,el){ currentPetFilter=status; document.querySelectorAll('#page-pets .filter-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); renderPets(); }
+
+// ════ BANHOS ════
+function openBanhoModal(petId){
+  const db=getDBSync(); const p=db.pets.find(x=>x.id===petId); if(!p) return;
+  document.getElementById('banho-pet-id').value=petId;
+  document.getElementById('banho-pet-nome').value=p.nome+' ('+p.dono+')';
+  document.getElementById('banho-data').value=localToday();
+  document.getElementById('banho-valor').value=p.preco||'';
+  document.getElementById('banho-obs').value='';
+  openModal('modal-banho');
+}
+async function saveBanho(){
+  const petId=document.getElementById('banho-pet-id').value;
+  const data=document.getElementById('banho-data').value;
+  const valor=parseFloat(document.getElementById('banho-valor').value)||0;
+  const tipo=document.getElementById('banho-tipo').value;
+  if(!data){ showToast('Informe a data','error'); return; }
+  if(!valor){ showToast('Informe o valor','error'); return; }
+  const db=getDBSync(); const p=db.pets.find(x=>x.id===petId);
+  const tipoLabels={banho:'Banho',banho_tosa:'Banho + Tosa',tosa:'Tosa',banho_hidratacao:'Banho + Hidratação',consulta:'Consulta',outro:'Serviço'};
+  db.banhos.push({id:uid(),petId,data,valor,tipo,obs:document.getElementById('banho-obs').value.trim(),createdAt:new Date().toISOString()});
+  db.financeiro.push({id:uid(),tipo:'receita',desc:`${tipoLabels[tipo]||'Serviço'} - ${p?p.nome:''}`,valor,data,cat:'servico',createdAt:new Date().toISOString()});
+  await saveDB(db); closeModal('modal-banho'); refreshAll(); showToast('Banho registrado! 🛁','success');
+}
+function openHistorico(petId){
+  const db=getDBSync(); const p=db.pets.find(x=>x.id===petId);
+  const banhos=db.banhos.filter(b=>b.petId===petId).sort((a,b)=>b.data.localeCompare(a.data));
+  document.getElementById('hist-title').textContent=`🛁 ${p?p.nome:'Pet'} — Histórico`;
+  const tipoEmoji={banho:'🛁',banho_tosa:'✂️',tosa:'✂️',banho_hidratacao:'💆',consulta:'🩺',outro:'📦'};
+  const tipoLabel={banho:'Banho',banho_tosa:'Banho + Tosa',tosa:'Tosa',banho_hidratacao:'Banho + Hidratação',consulta:'Consulta',outro:'Outro'};
+  document.getElementById('hist-body').innerHTML=banhos.length
+    ?`<div class="bath-timeline">${banhos.map(b=>`<div class="bath-item"><div class="bath-dot" style="background:var(--mint)"></div><div class="bath-info"><strong>${tipoEmoji[b.tipo]||'🛁'} ${tipoLabel[b.tipo]||'Banho'}</strong><span>${fmtDate(b.data)}${b.obs?' • '+esc(b.obs):''}</span></div><div class="bath-price">${fmtMoney(b.valor)}</div></div>`).join('')}</div>`
+    :'<div class="empty-state"><div class="empty-icon">🛁</div><h3>Nenhum banho registrado</h3></div>';
+  openModal('modal-historico');
+}
+
+// ════ AGENDAMENTOS ════
+function openAgendModal(){
+  document.getElementById('agend-edit-id').value='';
+  document.getElementById('agend-modal-title').textContent='📅 Novo Agendamento';
+  document.getElementById('agend-data').value=new Date().toISOString().slice(0,10);
+  document.getElementById('agend-hora').value='09:00';
+  document.getElementById('agend-obs').value='';
+  document.getElementById('agend-tipo').value='banho';
+  document.getElementById('agend-lembrete').checked=true;
+  populateAgendPets('');
+  openModal('modal-agend');
+}
+function openAgendModalForPet(petId){
+  openAgendModal();
+  setTimeout(()=>{ document.getElementById('agend-pet-id').value=petId; },50);
+}
+function populateAgendPets(selectedId){
+  const db=getDBSync();
+  document.getElementById('agend-pet-id').innerHTML='<option value="">Selecione o pet...</option>'+
+    db.pets.map(p=>`<option value="${esc(p.id)}" ${p.id===selectedId?'selected':''}>${esc(p.nome)} — ${esc(p.dono)}</option>`).join('');
+}
+async function saveAgend(){
+  const petId=document.getElementById('agend-pet-id').value;
+  const data=document.getElementById('agend-data').value;
+  const hora=document.getElementById('agend-hora').value;
+  if(!petId){ showToast('Selecione um pet','error'); return; }
+  if(!data){ showToast('Informe a data','error'); return; }
+  const db=getDBSync(); const p=db.pets.find(x=>x.id===petId);
+  const id=document.getElementById('agend-edit-id').value;
+  const agend={petId,data,hora,tipo:document.getElementById('agend-tipo').value,obs:document.getElementById('agend-obs').value.trim(),lembrete:document.getElementById('agend-lembrete').checked};
+  if(id){ const idx=db.agendamentos.findIndex(a=>a.id===id); db.agendamentos[idx]={...db.agendamentos[idx],...agend}; showToast('Agendamento atualizado ✅','success'); }
+  else { db.agendamentos.push({id:uid(),...agend,createdAt:new Date().toISOString()}); showToast('Agendamento criado! 📅','success'); }
+  await saveDB(db); closeModal('modal-agend'); refreshAll();
+  // WPP lembrete se marcado
+  if(agend.lembrete && p){
+    const dataFmt=fmtDate(data);
+    const msgAgend=`Olá ${p.dono}! 🐾 Confirmando o agendamento de ${tipoLabelAgend(agend.tipo)} para o ${p.nome} no dia ${dataFmt} às ${hora}. Qualquer dúvida, é só falar! 🛁`;
+    window.open(`https://wa.me/55${p.wpp.replace(/\D/g,'')}?text=${encodeURIComponent(msgAgend)}`,'_blank');
+  }
+}
+function tipoLabelAgend(tipo){ return{banho:'Banho',banho_tosa:'Banho + Tosa',tosa:'Tosa',banho_hidratacao:'Banho + Hidratação',consulta:'Consulta',outro:'Serviço'}[tipo]||'Serviço'; }
+function editAgend(id){
+  const db=getDBSync(); const a=db.agendamentos.find(x=>x.id===id); if(!a) return;
+  document.getElementById('agend-edit-id').value=id;
+  document.getElementById('agend-modal-title').textContent='✏️ Editar Agendamento';
+  document.getElementById('agend-data').value=a.data;
+  document.getElementById('agend-hora').value=a.hora||'09:00';
+  document.getElementById('agend-tipo').value=a.tipo||'banho';
+  document.getElementById('agend-obs').value=a.obs||'';
+  document.getElementById('agend-lembrete').checked=a.lembrete!==false;
+  populateAgendPets(a.petId);
+  openModal('modal-agend');
+}
+async function concluirAgend(id){
+  const db=getDBSync(); const a=db.agendamentos.find(x=>x.id===id); if(!a) return;
+  const p=db.pets.find(x=>x.id===a.petId);
+  // registra banho automático
+  const valor=p?p.preco:0;
+  const tipoLabels={banho:'Banho',banho_tosa:'Banho + Tosa',tosa:'Tosa',banho_hidratacao:'Banho + Hidratação',consulta:'Consulta',outro:'Serviço'};
+  db.banhos.push({id:uid(),petId:a.petId,data:a.data,valor,tipo:a.tipo,obs:'Via agendamento',createdAt:new Date().toISOString()});
+  if(valor) db.financeiro.push({id:uid(),tipo:'receita',desc:`${tipoLabels[a.tipo]||'Serviço'} - ${p?p.nome:''}`,valor,data:a.data,cat:'servico',createdAt:new Date().toISOString()});
+  a.concluido=true;
+  await saveDB(db); refreshAll();
+  showToast('Banho registrado e agendamento concluído! 🛁','success');
+}
+function renderAgendamentos(){
+  const db=getDBSync();
+  const hoje=localToday();
+  let agends=[...db.agendamentos].filter(a=>!a.concluido);
+  if(currentAgendFilter==='proximos') agends=agends.filter(a=>a.data>=hoje);
+  else if(currentAgendFilter==='passados') agends=agends.filter(a=>a.data<hoje);
+  agends.sort((a,b)=>a.data.localeCompare(b.data)||(a.hora||'').localeCompare(b.hora||''));
+  const tipoEmoji={banho:'🛁',banho_tosa:'✂️',tosa:'✂️',banho_hidratacao:'💆',consulta:'🩺',outro:'📦'};
+  const html=agends.length?agends.map(a=>{
+    const p=db.pets.find(x=>x.id===a.petId);
+    const dt=new Date(a.data+'T12:00:00');
+    const isHoje=a.data===hoje;
+    const isPast=a.data<hoje;
+    const dayNum=dt.getDate().toString().padStart(2,'0');
+    const mon=dt.toLocaleString('pt-BR',{month:'short'}).replace('.','');
+    return `<div class="agend-card ${isPast?'passado':''}${isHoje?' hoje':''}">
+      <div class="agend-date"><div class="day">${dayNum}</div><div class="mon">${mon}</div></div>
+      <div class="agend-info">
+        <strong>${tipoEmoji[a.tipo]||'🛁'} ${tipoLabelAgend(a.tipo)} ${p?'— '+esc(p.nome):''}</strong>
+        <span>${a.hora||''} ${p?'• Tutor: '+esc(p.dono):''}</span>
+        ${a.obs?`<span style="font-style:italic;color:var(--gray-300)">${esc(a.obs)}</span>`:''}
+        ${isHoje?'<span style="color:var(--amber);font-weight:800;font-size:12px">⚡ Hoje!</span>':''}
+      </div>
+      <div class="agend-actions">
+        ${!isPast?`<button class="btn btn-success btn-sm" onclick="concluirAgend('${esc(a.id)}')"><i class="fas fa-check"></i></button>`:''}
+        <button class="btn btn-amber btn-sm" onclick="editAgend('${esc(a.id)}')"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDelete('agend','${esc(a.id)}','o agendamento de ${esc(tipoLabelAgend(a.tipo))}')"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('')
+  :`<div class="empty-state"><div class="empty-icon">📅</div><h3>Nenhum agendamento</h3><p>Toque no + para agendar um banho</p></div>`;
+  document.getElementById('agend-list').innerHTML=html;
+}
+function filterAgend(f,el){ currentAgendFilter=f; document.querySelectorAll('#page-agendamentos .filter-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); renderAgendamentos(); }
+function checkAgendHoje(){
+  const db=getDBSync();
+  const hoje=localToday();
+  const agendHoje=db.agendamentos.filter(a=>a.data===hoje&&!a.concluido);
+  if(agendHoje.length){ showToast(`📅 ${agendHoje.length} agendamento(s) para hoje!`,'warning'); }
+}
+
+// ════ FINANCEIRO ════
+function openFinModal(){
+  document.getElementById('fin-edit-id').value='';
+  document.getElementById('modal-fin').querySelector('.modal-title').textContent='💰 Novo Lançamento';
+  document.getElementById('fin-tipo').value='receita';
+  document.getElementById('fin-data').value=localToday();
+  ['fin-desc','fin-valor'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fin-cat').value='servico';
+  switchFinTab('receita');
+  openModal('modal-fin');
+}
+function switchFinTab(t){
+  document.getElementById('fin-tipo').value=t;
+  document.getElementById('fin-tab-receita').classList.toggle('active',t==='receita');
+  document.getElementById('fin-tab-despesa').classList.toggle('active',t==='despesa');
+}
+async function saveFin(){
+  const desc=document.getElementById('fin-desc').value.trim();
+  const valor=parseFloat(document.getElementById('fin-valor').value)||0;
+  const data=document.getElementById('fin-data').value;
+  const tipo=document.getElementById('fin-tipo').value;
+  if(!desc){ showToast('Informe a descrição','error'); return; }
+  if(!valor){ showToast('Informe o valor','error'); return; }
+  if(!data){ showToast('Informe a data','error'); return; }
+  const db=getDBSync();
+  db.financeiro.push({id:uid(),tipo,desc,valor,data,cat:document.getElementById('fin-cat').value,createdAt:new Date().toISOString()});
+  const editId=document.getElementById('fin-edit-id').value;
+  if(editId){
+    const idx=db.financeiro.findIndex(f=>f.id===editId);
+    if(idx>-1) db.financeiro[idx]={...db.financeiro[idx],tipo,desc,valor,data,cat:document.getElementById('fin-cat').value};
+    showToast('Lançamento atualizado! ✅','success');
+  } else {
+    db.financeiro.push({id:uid(),tipo,desc,valor,data,cat:document.getElementById('fin-cat').value,createdAt:new Date().toISOString()});
+    showToast('Lançamento salvo! 💰','success');
+  }
+  await saveDB(db); closeModal('modal-fin'); refreshAll();
+}
+function editFin(id){
+  const db=getDBSync(); const f=db.financeiro.find(x=>x.id===id); if(!f) return;
+  document.getElementById('fin-edit-id').value=id;
+  document.getElementById('modal-fin').querySelector('.modal-title').textContent='✏️ Editar Lançamento';
+  document.getElementById('fin-desc').value=f.desc;
+  document.getElementById('fin-valor').value=f.valor;
+  document.getElementById('fin-data').value=f.data;
+  document.getElementById('fin-cat').value=f.cat||'servico';
+  switchFinTab(f.tipo);
+  openModal('modal-fin');
+}
+function renderFinanceiro(filter='todos'){
+  const db=getDBSync(); let items=[...db.financeiro].sort((a,b)=>b.data.localeCompare(a.data));
+  const hoje=localToday();
+  if(finPeriodoFilter==='mes') items=items.filter(i=>i.data.slice(0,7)===hoje.slice(0,7));
+  else if(finPeriodoFilter==='semana'){ const semAgo=new Date(); semAgo.setDate(semAgo.getDate()-7); const semStr=semAgo.toISOString().slice(0,10); items=items.filter(i=>i.data>=semStr); }
+  const receitas=items.filter(i=>i.tipo==='receita').reduce((s,i)=>s+i.valor,0);
+  const despesas=items.filter(i=>i.tipo==='despesa').reduce((s,i)=>s+i.valor,0);
+  const saldo=receitas-despesas;
+  document.getElementById('fin-summary').innerHTML=`
+    <div class="fin-card receita"><div class="fin-label">💰 Receitas</div><div class="fin-val">${fmtMoney(receitas)}</div></div>
+    <div class="fin-card despesa"><div class="fin-label">💸 Despesas</div><div class="fin-val">${fmtMoney(despesas)}</div></div>
+    <div class="fin-card saldo"><div class="fin-label">📊 Saldo ${finPeriodoFilter==='mes'?'do mês':finPeriodoFilter==='semana'?'da semana':'geral'}</div><div class="fin-val" style="color:${saldo>=0?'var(--mint)':'var(--rose)'}">${fmtMoney(saldo)}</div></div>`;
+  renderFinChart(receitas,despesas);
+  if(filter!=='todos') items=items.filter(i=>i.tipo===filter);
+  const catEmoji={servico:'✂️',produto:'📦',fornecedor:'🏭',aluguel:'🏠',funcionario:'👤',marketing:'📣',outros:'📌'};
+  document.getElementById('fin-list').innerHTML=items.length
+    ?items.map(i=>`<div class="fin-item">
+        <div class="fin-icon" style="background:${i.tipo==='receita'?'var(--mint-pale)':'var(--rose-pale)'}"><span>${catEmoji[i.cat]||'💰'}</span></div>
+        <div class="fin-item-info"><strong>${esc(i.desc)}</strong><span>${fmtDate(i.data)} • ${esc(i.cat)}</span></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div class="fin-item-val ${i.tipo==='receita'?'pos':'neg'}">${i.tipo==='receita'?'+':'-'} ${fmtMoney(i.valor)}</div>
+          <button class="btn btn-sm" style="background:var(--ocean-pale);color:var(--ocean)" onclick="editFin('${esc(i.id)}')"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDelete('fin','${esc(i.id)}','o lançamento ${esc(i.desc)}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>`).join('')
+    :'<div class="empty-state"><div class="empty-icon">💸</div><h3>Nenhum lançamento</h3><p>Toque no + para registrar receitas ou despesas</p></div>';
+}
+function filterFinPeriodo(f,el){
+  finPeriodoFilter=f;
+  document.querySelectorAll('#page-financeiro .tabs-filter:first-child .filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderFinanceiro(finTipoFilter);
+}
+function filterFin(filter,el){
+  finTipoFilter=filter; document.querySelectorAll('#page-financeiro .filter-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); renderFinanceiro(filter); }
+function renderFinChart(rec,des){
+  const ctx=document.getElementById('chart-fin'); if(!ctx) return;
+  if(chartFin) chartFin.destroy();
+  chartFin=new Chart(ctx,{type:'doughnut',data:{labels:['Receitas','Despesas'],datasets:[{data:[rec,des],backgroundColor:['#1A9B60','#C0392B'],borderWidth:0,hoverOffset:6}]},options:{plugins:{legend:{position:'bottom',labels:{font:{family:'Nunito',weight:'700'},padding:16}}},cutout:'68%'}});
+}
+
+// ════ DASHBOARD ════
+function renderDashboard(){
+  const db=getDBSync();
+  const hoje=localToday();
+  const banhosHoje=db.banhos.filter(b=>b.data===hoje).length;
+  const receitasMes=db.financeiro.filter(f=>f.tipo==='receita'&&f.data.slice(0,7)===hoje.slice(0,7)).reduce((s,i)=>s+i.valor,0);
+  const despesasMes=db.financeiro.filter(f=>f.tipo==='despesa'&&f.data.slice(0,7)===hoje.slice(0,7)).reduce((s,i)=>s+i.valor,0);
+  const saldoMes=receitasMes-despesasMes;
+  const urgentes=db.pets.filter(p=>{ const d=getLastBathDays(p.id,db.banhos); return d===null||d>15; }).length;
+  const agendHoje=db.agendamentos.filter(a=>a.data===hoje&&!a.concluido).length;
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="stat-card ocean"><div class="stat-icon">🐾</div><div class="stat-val">${db.pets.length}</div><div class="stat-label">Pets cadastrados</div></div>
+    <div class="stat-card mint"><div class="stat-icon">🛁</div><div class="stat-val">${banhosHoje}</div><div class="stat-label">Banhos hoje</div></div>
+    <div class="stat-card amber"><div class="stat-icon">💰</div><div class="stat-val">${fmtMoney(receitasMes)}</div><div class="stat-label">Receita este mês</div></div>
+    <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-val">${urgentes}</div><div class="stat-label">Alertas de banho</div></div>
+    <div class="stat-card rose" style="cursor:pointer" onclick="showPage('financeiro')"><div class="stat-icon">💸</div><div class="stat-val">${fmtMoney(despesasMes)}</div><div class="stat-label">Despesas este mês</div></div>
+    <div class="stat-card mint" style="cursor:pointer;grid-column:1/-1" onclick="showPage('financeiro')"><div class="stat-icon">📊</div><div class="stat-val" style="color:${saldoMes>=0?'var(--mint)':'var(--rose)'}">${fmtMoney(saldoMes)}</div><div class="stat-label">Saldo do mês</div></div>`;
+  renderBanhosChart(db);
+  const pending=db.pets.filter(p=>{ const d=getLastBathDays(p.id,db.banhos); return d===null||d>14; }).slice(0,5);
+  document.getElementById('dash-pending-count').textContent=pending.length;
+  document.getElementById('dash-pending-list').innerHTML=pending.length
+    ?pending.map(p=>{ const d=getLastBathDays(p.id,db.banhos); return `<div class="fin-item"><div class="pet-avatar" style="background:${esc(p.color||'#1B4F72')};width:40px;height:40px;border-radius:12px;font-size:16px;display:flex;align-items:center;justify-content:center;color:white;font-weight:800">${esc(p.nome.charAt(0).toUpperCase())}</div><div class="fin-item-info"><strong>${esc(p.nome)}</strong><span>${esc(p.dono)} • ${d===null?'Nunca banhado':d+' dias sem banho'}</span></div><div style="display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="openBanhoModal('${esc(p.id)}')"><i class="fas fa-bath"></i></button><button class="btn btn-sm" style="background:#E8F8F5;color:#25D366" onclick="sendWhatsApp('${esc(p.id)}')"><i class="fab fa-whatsapp"></i></button></div></div>`; }).join('')
+    :'<div style="text-align:center;padding:20px;color:var(--gray-300)">✅ Todos os pets estão em dia!</div>';
+}
+function renderBanhosChart(db){
+  const ctx=document.getElementById('chart-banhos'); if(!ctx) return;
+  if(chartBanhos) chartBanhos.destroy();
+  const labels=[]; const data=[];
+  for(let i=5;i>=0;i--){ const d=new Date(); d.setMonth(d.getMonth()-i); const ym=d.toISOString().slice(0,7); labels.push(d.toLocaleString('pt-BR',{month:'short'})); data.push(db.banhos.filter(b=>b.data.startsWith(ym)).length); }
+  chartBanhos=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Banhos',data,backgroundColor:'rgba(27,79,114,0.15)',borderColor:'#1B4F72',borderWidth:2,borderRadius:8}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{family:'Nunito'}},grid:{color:'rgba(0,0,0,.04)'}},x:{ticks:{font:{family:'Nunito',weight:'700'}},grid:{display:false}}}}});
+}
+
+// ════ NOTIFICAÇÕES ════
+function refreshAll(){
+  // Sempre atualiza badge de notificações
+  checkNotifications();
+  // Atualiza a página ativa (sem piscar páginas inativas)
+  const active = document.querySelector('.page.active');
+  if(!active) return;
+  const page = active.id.replace('page-','');
+  if(page==='dashboard') renderDashboard();
+  else if(page==='pets') renderPets();
+  else if(page==='agendamentos') renderAgendamentos();
+  else if(page==='financeiro') renderFinanceiro(finTipoFilter);
+  else if(page==='historico-geral') renderHistoricoGeral();
+  else if(page==='notificacoes') renderNotificacoes();
+  // Dashboard sempre re-renderiza em background para manter stats corretos
+  if(page!=='dashboard') renderDashboard();
+}
+function checkNotifications(){
+  const db=getDBSync();
+  const urgentes=db.pets.filter(p=>{ const d=getLastBathDays(p.id,db.banhos); return d===null||d>15; });
+  const badge=document.getElementById('notif-badge');
+  if(urgentes.length){ badge.style.display='flex'; badge.textContent=urgentes.length; }
+  else badge.style.display='none';
+}
+function renderNotificacoes(){
+  const db=getDBSync();
+  const urgentes=db.pets.filter(p=>{ const d=getLastBathDays(p.id,db.banhos); return d===null||d>15; });
+  const aviso=db.pets.filter(p=>{ const d=getLastBathDays(p.id,db.banhos); return d!==null&&d>10&&d<=15; });
+  document.getElementById('msg-template').value=db.msgTemplate||'';
+  let html='';
+  if(!urgentes.length&&!aviso.length) html='<div class="empty-state"><div class="empty-icon">✅</div><h3>Tudo em dia!</h3><p>Nenhum pet precisa de lembrete agora.</p></div>';
+  const renderNotifPet=(p,tipo)=>{
+    const d=getLastBathDays(p.id,db.banhos);
+    const emailBtn=p.email?`<button class="btn-email-send" data-email="${esc(p.id)}" onclick="sendEmail('${esc(p.id)}')"><i class="fas fa-envelope"></i> E-mail</button>`:'';
+    html+=`<div class="notif-item ${tipo}">
+      <div class="notif-icon">${tipo==='urgent'?'🔴':'⚠️'}</div>
+      <div class="notif-info">
+        <h4>${esc(p.nome)}</h4>
+        <p>${d===null?'Nunca tomou banho aqui':'Há '+d+' dias sem banho'} • Tutor: ${esc(p.dono)}</p>
+        ${p.email?`<p style="font-size:11px;color:var(--gray-300)"><i class="fas fa-envelope"></i> ${esc(p.email)}</p>`:''}
+        <div class="notif-actions">
+          <button class="btn-whatsapp" onclick="sendWhatsApp('${esc(p.id)}')"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+          ${emailBtn}
+          <button class="btn btn-success btn-sm" onclick="openBanhoModal('${esc(p.id)}')"><i class="fas fa-bath"></i> Registrar banho</button>
+        </div>
+      </div>
+    </div>`;
+  };
+  urgentes.forEach(p=>renderNotifPet(p,'urgent'));
+  aviso.forEach(p=>renderNotifPet(p,'warning'));
+  document.getElementById('notif-list').innerHTML=html;
+}
+async function saveMsgTemplate(){ const db=getDBSync(); db.msgTemplate=document.getElementById("msg-template").value; await saveDB(db); showToast("Mensagem salva! ✅","success"); }
+function openMsgConfig(){ showPage('notificacoes'); }
+
+// ════ WHATSAPP ════
+function sendWhatsApp(petId){
+  const db=getDBSync(); const p=db.pets.find(x=>x.id===petId); if(!p) return;
+  const msg=buildMsg(p,db.msgTemplate);
+  const num=p.wpp.replace(/\D/g,'');
+  window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+// ════ DELETE ════
+function confirmDelete(type,id,desc){
+  deleteTarget={type,id};
+  document.getElementById('delete-desc').innerHTML=`Você está prestes a excluir <strong>${esc(desc)}</strong>. Esta ação não pode ser desfeita.`;
+  document.getElementById('delete-confirm-input').value='';
+  document.getElementById('btn-confirm-delete').disabled=true;
+  openModal('modal-delete');
+}
+function checkDeleteInput(el){ const ok=el.value.trim()==='REMOVER'; document.getElementById('btn-confirm-delete').disabled=!ok; el.style.borderColor=el.value&&!ok?'var(--rose)':''; }
+async function executeDelete(){
+  if(!deleteTarget) return;
+  const db=getDBSync();
+  if(deleteTarget.type==='pet'){ db.pets=db.pets.filter(p=>p.id!==deleteTarget.id); db.banhos=db.banhos.filter(b=>b.petId!==deleteTarget.id); showToast('Pet removido','success'); }
+  else if(deleteTarget.type==='fin'){ db.financeiro=db.financeiro.filter(f=>f.id!==deleteTarget.id); showToast('Lançamento removido','success'); }
+  else if(deleteTarget.type==='banho'){ db.banhos=db.banhos.filter(b=>b.id!==deleteTarget.id); showToast('Banho removido','success'); }
+  else if(deleteTarget.type==='agend'){ db.agendamentos=db.agendamentos.filter(a=>a.id!==deleteTarget.id); showToast('Agendamento removido','success'); }
+  await saveDB(db); closeModal('modal-delete'); deleteTarget=null; refreshAll();
+}
+
+// ════ HISTÓRICO GERAL ════
+let histPeriodoFilter = 'todos';
+let finPeriodoFilter = 'todos';
+let finTipoFilter = 'todos';
+function filterHistPeriodo(f, el){
+  histPeriodoFilter = f;
+  document.querySelectorAll('#page-historico-geral .filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderHistoricoGeral();
+}
+function renderHistoricoGeral(){
+  const db = getDBSync();
+  const search = (document.getElementById('hist-search')||{}).value||'';
+  const hoje = new Date();
+  const tipoEmoji = {banho:'🛁',banho_tosa:'✂️',tosa:'✂️',banho_hidratacao:'💆',consulta:'🩺',outro:'📦'};
+  const tipoLabel = {banho:'Banho',banho_tosa:'Banho + Tosa',tosa:'Tosa',banho_hidratacao:'Banho + Hidratação',consulta:'Consulta',outro:'Outro'};
+
+  let banhos = [...db.banhos].sort((a,b)=>b.data.localeCompare(a.data));
+
+  // filtro período
+  if(histPeriodoFilter === 'mes'){
+    const ym = hoje.toISOString().slice(0,7);
+    banhos = banhos.filter(b=>b.data.startsWith(ym));
+  } else if(histPeriodoFilter === 'semana'){
+    const semAgo = new Date(hoje); semAgo.setDate(hoje.getDate()-7);
+    banhos = banhos.filter(b=>new Date(b.data+'T12:00:00')>=semAgo);
+  }
+
+  // filtro busca
+  if(search){
+    const q = search.toLowerCase();
+    banhos = banhos.filter(b=>{
+      const p = db.pets.find(x=>x.id===b.petId);
+      return p && (p.nome.toLowerCase().includes(q)||p.dono.toLowerCase().includes(q));
+    });
+  }
+
+  // stats mini
+  const total = banhos.length;
+  const receita = banhos.reduce((s,b)=>s+b.valor,0);
+  const petsUnicos = new Set(banhos.map(b=>b.petId)).size;
+  document.getElementById('hist-geral-stats').innerHTML = `
+    <div style="background:white;border-radius:12px;padding:12px;box-shadow:var(--shadow);text-align:center">
+      <div style="font-size:20px;font-weight:900;color:var(--ocean)">${total}</div>
+      <div style="font-size:11px;color:var(--gray-500);font-weight:700">Banhos</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:12px;box-shadow:var(--shadow);text-align:center">
+      <div style="font-size:20px;font-weight:900;color:var(--mint)">${petsUnicos}</div>
+      <div style="font-size:11px;color:var(--gray-500);font-weight:700">Pets</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:12px;box-shadow:var(--shadow);text-align:center">
+      <div style="font-size:16px;font-weight:900;color:var(--amber)">${fmtMoney(receita)}</div>
+      <div style="font-size:11px;color:var(--gray-500);font-weight:700">Receita</div>
+    </div>`;
+
+  if(!banhos.length){
+    document.getElementById('hist-geral-list').innerHTML='<div class="empty-state"><div class="empty-icon">🛁</div><h3>Nenhum banho encontrado</h3><p>Registre banhos nos cards de cada pet</p></div>';
+    return;
+  }
+
+  // agrupar por data
+  const grupos = {};
+  banhos.forEach(b=>{ if(!grupos[b.data]) grupos[b.data]=[]; grupos[b.data].push(b); });
+
+  let html = '';
+  Object.keys(grupos).sort((a,b)=>b.localeCompare(a)).forEach(data=>{
+    const itens = grupos[data];
+    const totalDia = itens.reduce((s,b)=>s+b.valor,0);
+    html += `<div style="margin-bottom:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:800;color:var(--gray-500)">${fmtDate(data)}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--mint)">${fmtMoney(totalDia)}</span>
+      </div>`;
+    itens.forEach(b=>{
+      const p = db.pets.find(x=>x.id===b.petId);
+      html += `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:8px;display:flex;align-items:center;gap:12px">
+        <div style="width:42px;height:42px;border-radius:12px;background:${esc(p?p.color:'#1B4F72')};display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:17px;flex-shrink:0">${p?esc(p.nome.charAt(0).toUpperCase()):'?'}</div>
+        <div style="flex:1;min-width:0">
+          <strong style="font-size:14px;font-weight:800;display:block">${tipoEmoji[b.tipo]||'🛁'} ${p?esc(p.nome):'Pet removido'}</strong>
+          <span style="font-size:12px;color:var(--gray-500)">${tipoLabel[b.tipo]||'Banho'} • ${p?esc(p.dono):''}</span>
+          ${b.obs?`<span style="font-size:11px;color:var(--gray-300);display:block;font-style:italic">${esc(b.obs)}</span>`:''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-weight:900;color:var(--mint);font-size:15px">${fmtMoney(b.valor)}</div>
+          <button class="btn btn-danger btn-sm" style="margin-top:6px;font-size:11px;padding:4px 8px" onclick="confirmDeleteBanho('${esc(b.id)}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('hist-geral-list').innerHTML = html;
+}
+function confirmDeleteBanho(id){
+  confirmDelete('banho', id, 'este registro de banho');
+}
+
+// ════ EXPORT / IMPORT ════
+function exportData(){
+  const db=getDBSync();
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`petshop_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  showToast('Backup exportado! 📦','success');
+}
+function exportCSV(){
+  const db=getDBSync();
+  const rows=[['Pet','Tutor','WhatsApp','E-mail','Porte','Preço','Último Banho','Dias sem banho']];
+  db.pets.forEach(p=>{
+    const lb=getLastBath(p.id,db.banhos);
+    const d=getLastBathDays(p.id,db.banhos);
+    rows.push([p.nome,p.dono,p.wpp,p.email||'',p.porte,p.preco||0,lb?lb.data:'Nunca',d===null?'Nunca':d]);
+  });
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`petshop_relatorio_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  showToast('Relatório CSV exportado! 📊','success');
+}
+function importData(){ document.getElementById('import-file').click(); }
+function handleImport(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{ try{ const data=JSON.parse(ev.target.result); await saveDB(data); showToast('Backup restaurado! ✅','success'); showPage('dashboard'); refreshAll(); } catch{ showToast('Arquivo inválido','error'); } };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+// ════ MODAL HELPERS ════
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',function(e){ if(e.target===this) closeModal(this.id); }));
+
+// ════ TOAST ════
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='show'+(type?' '+type:'');
+  setTimeout(()=>t.className='',3400);
+}
+
+// ════ LICENÇA ════
+const PLANOS = {
+  trial:       { label: '🎁 Trial',       dias: 30  },
+  mensal:      { label: '📅 Mensal',      dias: 30  },
+  trimestral:  { label: '📦 Trimestral',  dias: 90  },
+  semestral:   { label: '⭐ Semestral',   dias: 180 },
+  anual:       { label: '🏆 Anual',       dias: 365 },
+};
+function addDias(dias){
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return d.toISOString();
+}
+function licencaStatus(expiry){
+  if(!expiry) return { ok: false, label: 'Sem licença', dias: -1 };
+  const diff = Math.ceil((new Date(expiry) - new Date()) / 864e5);
+  if(diff <= 0) return { ok: false, label: 'Expirado', dias: diff };
+  if(diff <= 7) return { ok: true, label: `⚠️ ${diff}d restantes`, dias: diff, alerta: true };
+  return { ok: true, label: `✅ ${diff}d restantes`, dias: diff };
+}
+
+// ════ ADMIN ════
+async function loadAdminPanel(){
+  const isAdmin = currentUser && currentUser.email === window._ADMIN_EMAIL;
+  const panel = document.getElementById('admin-panel');
+  if(!panel) return;
+  panel.style.display = isAdmin ? 'block' : 'none';
+  if(!isAdmin) return;
+  await renderAdminEmailList();
+}
+async function renderAdminEmailList(){
+  const {collection, getDocs} = window._fbFns;
+  const list = document.getElementById('admin-email-list');
+  try{
+    const snap = await getDocs(collection(window._fbDb, 'allowed_emails'));
+    if(snap.empty){ list.innerHTML='<p style="color:var(--gray-500);font-size:13px;text-align:center;padding:16px">Nenhum cliente ainda.</p>'; return; }
+    let html='';
+    snap.forEach(d=>{
+      const data = d.data();
+      const email = data.email || d.id.replace(/_/g,'.');
+      const plano = data.plano || 'mensal';
+      const st = licencaStatus(data.expiry);
+      const stColor = !st.ok ? 'var(--rose)' : st.alerta ? 'var(--amber)' : 'var(--mint)';
+      const planoLabel = PLANOS[plano]?.label || plano;
+      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--gray-100)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="min-width:0">
+            <div style="font-size:14px;font-weight:800;color:var(--gray-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(email)}</div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${planoLabel}</div>
+            <div style="font-size:12px;font-weight:700;color:${stColor};margin-top:2px">${st.label}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="adminRenew('${esc(d.id)}','${esc(email)}')" class="btn btn-success btn-sm" style="font-size:11px;padding:6px 10px" title="Renovar"><i class="fas fa-redo"></i></button>
+            <button onclick="adminRemoveEmail('${esc(d.id)}','${esc(email)}')" class="btn btn-danger btn-sm" style="font-size:11px;padding:6px 10px" title="Remover"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      </div>`;
+    });
+    list.innerHTML = html;
+  } catch(e){ list.innerHTML='<p style="color:var(--rose);font-size:13px;padding:12px">Erro ao carregar lista.</p>'; }
+}
+async function adminAddEmail(){
+  const input  = document.getElementById('admin-new-email');
+  const plano  = document.getElementById('admin-new-plano').value;
+  const email  = input.value.trim().toLowerCase();
+  if(!email || !email.includes('@')){ showToast('E-mail inválido','error'); return; }
+  const {doc, setDoc} = window._fbFns;
+  const key    = email.replace(/\./g,'_');
+  const expiry = addDias(PLANOS[plano].dias);
+  try{
+    await setDoc(doc(window._fbDb,'allowed_emails',key),{email, plano, expiry, addedAt: new Date().toISOString()});
+    input.value='';
+    showToast(`${email} adicionado (${PLANOS[plano].label})! ✅`,'success');
+    await renderAdminEmailList();
+  } catch(e){ showToast('Erro ao adicionar','error'); }
+}
+async function adminRenew(key, email){
+  // Buscar plano atual e renovar a partir de hoje
+  const {doc, getDoc, setDoc} = window._fbFns;
+  try{
+    const snap = await getDoc(doc(window._fbDb,'allowed_emails',key));
+    const data  = snap.exists() ? snap.data() : {};
+    const plano = data.plano || 'mensal';
+    const expiry = addDias(PLANOS[plano]?.dias || 30);
+    await setDoc(doc(window._fbDb,'allowed_emails',key),{...data, expiry, renewedAt: new Date().toISOString()});
+    showToast(`${email} renovado por ${PLANOS[plano]?.dias} dias! ✅`,'success');
+    await renderAdminEmailList();
+  } catch(e){ showToast('Erro ao renovar','error'); }
+}
+async function adminRemoveEmail(key, email){
+  if(!confirm(`Remover ${email}?`)) return;
+  const {doc, deleteDoc} = window._fbFns;
+  try{
+    await deleteDoc(doc(window._fbDb,'allowed_emails',key));
+    showToast(`${email} removido`,'success');
+    await renderAdminEmailList();
+  } catch(e){ showToast('Erro ao remover','error'); }
+}
+</script>
+</body>
+</html>
